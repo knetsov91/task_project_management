@@ -15,3 +15,6 @@ app.UseHttpsRedirection();
 app.MapControllers();
 
 app.Run();
+
+// Expose the entry point to WebApplicationFactory in integration tests.
+public partial class Program { }
