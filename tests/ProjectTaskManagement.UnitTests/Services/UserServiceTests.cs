@@ -1,5 +1,6 @@
 using Moq;
 using ProjectTaskManagement.Core.Entities;
+using ProjectTaskManagement.Core.Exceptions;
 using ProjectTaskManagement.Core.Interfaces;
 using ProjectTaskManagement.Core.Services;
 
@@ -37,4 +38,24 @@ public sealed class UserServiceTests
         _users.Verify(users => users.AddAsync(user, token), Times.Once);
         _users.VerifyNoOtherCalls();
     }
+
+    [Theory]
+    [InlineData("alice@example.com")]
+    [InlineData("ALICE@EXAMPLE.COM")]
+    [InlineData(" Alice@Example.Com ")]
+    public async Task CreateAsync_WhenEmailIsAlreadyRegistered_ThrowsDuplicateEmailException(string email)
+    {
+        _users.Setup(users => users.EmailExistsAsync("ALICE@EXAMPLE.COM", default))
+            .ReturnsAsync(true);
+        var service = new UserService(_users.Object, _timeProvider.Object);
+
+        await Assert.ThrowsAsync<DuplicateEmailException>(
+            () => service.CreateAsync("Alice", email));
+
+        _users.Verify(users => users.EmailExistsAsync("ALICE@EXAMPLE.COM", default), Times.Once);
+        _users.Verify(users => users.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
 }
