@@ -9,6 +9,12 @@ namespace ProjectTaskManagement.Infrastructure.Persistence.Repositories;
 
 public class UserRepository(AppDbContext dbContext) : IUserRepository
 {
+    public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Users.AsNoTracking()
+            .SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
+    }
+
     public Task<bool> EmailExistsAsync(
         string normalizedEmail, CancellationToken cancellationToken = default)
     {
