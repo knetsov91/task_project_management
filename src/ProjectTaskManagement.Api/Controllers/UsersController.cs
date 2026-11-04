@@ -9,6 +9,31 @@ namespace ProjectTaskManagement.Api.Controllers;
 [Route("api/v1/users")]
 public class UsersController(UserService userService) : ControllerBase
 {
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserResponse>> GetByIdAsync(
+        Guid id, CancellationToken cancellationToken)
+    {
+        var user = await userService.GetByIdAsync(id, cancellationToken);
+
+        if (user is null)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "User not found",
+                detail: $"No user with ID '{id}' exists.");
+        }
+
+        return Ok(new UserResponse
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            CreatedAt = user.CreatedAt
+        });
+    }
+
     [HttpPost]
     [ProducesResponseType<UserResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
