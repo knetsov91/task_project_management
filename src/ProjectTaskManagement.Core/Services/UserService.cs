@@ -6,6 +6,11 @@ namespace ProjectTaskManagement.Core.Services;
 
 public sealed class UserService(IUserRepository users, TimeProvider timeProvider)
 {
+    public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return users.GetByIdAsync(id, cancellationToken);
+    }
+
     public async Task<User> CreateAsync(
         string name, string email, CancellationToken cancellationToken = default)
     {
