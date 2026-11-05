@@ -80,4 +80,42 @@ public class UsersController(UserService userService) : ControllerBase
                 detail: exception.Message);
         }
     }
+
+    [HttpPatch("{id:guid}")]
+    [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<UserResponse>> UpdateAsync(
+        Guid id, UpdateUserRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var user = await userService.UpdateAsync(
+                id, request.Name, request.Email, cancellationToken);
+
+            if (user is null)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "User not found",
+                    detail: $"No user with ID '{id}' exists.");
+            }
+
+            return Ok(new UserResponse
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Email = user.Email,
+                CreatedAt = user.CreatedAt
+            });
+        }
+        catch (DuplicateEmailException exception)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Email already registered",
+                detail: exception.Message);
+        }
+    }
 }
