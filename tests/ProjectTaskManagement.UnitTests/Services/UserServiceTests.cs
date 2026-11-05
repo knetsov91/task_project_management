@@ -6,13 +6,46 @@ using ProjectTaskManagement.Core.Services;
 
 namespace ProjectTaskManagement.UnitTests.Services;
 
-public sealed class UserServiceTests
+public class UserServiceTests
 {
     private static readonly DateTimeOffset Now =
         new(2026, 11, 3, 10, 0, 0, TimeSpan.Zero);
 
     private readonly Mock<IUserRepository> _users = new(MockBehavior.Strict);
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
+
+    [Fact]
+    public async Task GetAllAsync_ReturnsUsersFromRepository()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        IReadOnlyList<User> expected =
+        [
+            new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Alice",
+                Email = "alice@example.com",
+                NormalizedEmail = "ALICE@EXAMPLE.COM"
+            },
+            new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Bob",
+                Email = "bob@example.com",
+                NormalizedEmail = "BOB@EXAMPLE.COM"
+            }
+        ];
+        _users.Setup(users => users.GetAllAsync(token)).ReturnsAsync(expected);
+        var service = new UserService(_users.Object, _timeProvider.Object);
+
+        var result = await service.GetAllAsync(token);
+
+        Assert.Same(expected, result);
+        _users.Verify(users => users.GetAllAsync(token), Times.Once);
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
 
     [Fact]
     public async Task CreateAsync_WhenEmailIsNotRegistered_CreatesUserSuccessfully()
