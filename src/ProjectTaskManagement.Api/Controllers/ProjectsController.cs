@@ -8,6 +8,32 @@ namespace ProjectTaskManagement.Api.Controllers;
 [Route("api/v1/projects")]
 public class ProjectsController(ProjectService projectService) : ControllerBase
 {
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType<ProjectResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProjectResponse>> GetByIdAsync(
+        Guid id, CancellationToken cancellationToken)
+    {
+        var project = await projectService.GetByIdAsync(id, cancellationToken);
+
+        if (project is null)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Project not found",
+                detail: $"No project with ID '{id}' exists.");
+        }
+
+        return Ok(new ProjectResponse
+        {
+            Id = project.Id,
+            Name = project.Name,
+            Description = project.Description,
+            OwnerId = project.OwnerId,
+            CreatedAt = project.CreatedAt
+        });
+    }
+
     [HttpPost]
     [ProducesResponseType<ProjectResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
