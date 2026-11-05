@@ -4,6 +4,8 @@ namespace ProjectTaskManagement.Core.Interfaces;
 
 public interface IUserRepository
 {
+    Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default);
+
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<bool> EmailExistsAsync(

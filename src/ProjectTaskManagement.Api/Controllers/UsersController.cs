@@ -9,6 +9,22 @@ namespace ProjectTaskManagement.Api.Controllers;
 [Route("api/v1/users")]
 public class UsersController(UserService userService) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType<IReadOnlyList<UserResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<UserResponse>>> GetAllAsync(
+        CancellationToken cancellationToken)
+    {
+        var users = await userService.GetAllAsync(cancellationToken);
+
+        return Ok(users.Select(user => new UserResponse
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            CreatedAt = user.CreatedAt
+        }).ToArray());
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

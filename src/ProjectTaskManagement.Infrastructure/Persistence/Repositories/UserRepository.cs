@@ -9,6 +9,14 @@ namespace ProjectTaskManagement.Infrastructure.Persistence.Repositories;
 
 public class UserRepository(AppDbContext dbContext) : IUserRepository
 {
+    public async Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Users.AsNoTracking()
+            .OrderBy(user => user.Name)
+            .ThenBy(user => user.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return dbContext.Users.AsNoTracking()

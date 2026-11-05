@@ -4,8 +4,13 @@ using ProjectTaskManagement.Core.Interfaces;
 
 namespace ProjectTaskManagement.Core.Services;
 
-public sealed class UserService(IUserRepository users, TimeProvider timeProvider)
+public class UserService(IUserRepository users, TimeProvider timeProvider)
 {
+    public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return users.GetAllAsync(cancellationToken);
+    }
+
     public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return users.GetByIdAsync(id, cancellationToken);
