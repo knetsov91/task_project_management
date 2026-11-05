@@ -15,6 +15,41 @@ public class UserServiceTests
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
     [Fact]
+    public async Task UpdateAsync_WhenUserExists_UpdatesNameAndEmail()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var userId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = userId,
+            Name = "Alice",
+            Email = "alice@example.com",
+            NormalizedEmail = "ALICE@EXAMPLE.COM",
+            CreatedAt = Now
+        };
+        _users.Setup(users => users.GetByIdAsync(userId, token)).ReturnsAsync(user);
+        _users.Setup(users => users.EmailExistsAsync("ALICE.SMITH@EXAMPLE.COM", token))
+            .ReturnsAsync(false);
+        _users.Setup(users => users.UpdateAsync(user, token)).Returns(Task.CompletedTask);
+        var service = new UserService(_users.Object, _timeProvider.Object);
+
+        var result = await service.UpdateAsync(
+            userId, " Alice Smith ", " alice.smith@example.com ", token);
+
+        Assert.Same(user, result);
+        Assert.Equal("Alice Smith", user.Name);
+        Assert.Equal("alice.smith@example.com", user.Email);
+        Assert.Equal("ALICE.SMITH@EXAMPLE.COM", user.NormalizedEmail);
+        Assert.Equal(Now, user.CreatedAt);
+        _users.Verify(users => users.GetByIdAsync(userId, token), Times.Once);
+        _users.Verify(users => users.EmailExistsAsync("ALICE.SMITH@EXAMPLE.COM", token), Times.Once);
+        _users.Verify(users => users.UpdateAsync(user, token), Times.Once);
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task GetAllAsync_ReturnsUsersFromRepository()
     {
         using var cancellation = new CancellationTokenSource();
