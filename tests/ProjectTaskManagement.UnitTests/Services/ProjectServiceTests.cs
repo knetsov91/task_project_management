@@ -1,5 +1,6 @@
 using Moq;
 using ProjectTaskManagement.Core.Entities;
+using ProjectTaskManagement.Core.Exceptions;
 using ProjectTaskManagement.Core.Interfaces;
 using ProjectTaskManagement.Core.Services;
 
@@ -7,6 +8,42 @@ namespace ProjectTaskManagement.UnitTests.Services;
 
 public class ProjectServiceTests
 {
+    [Fact]
+    public async Task UpdateAsync_WhenOwnerDoesNotExist_DoesNotChangeProject()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "Original",
+            Description = "Original description",
+            OwnerId = Guid.NewGuid()
+        };
+        var originalOwnerId = project.OwnerId;
+        var newOwnerId = Guid.NewGuid();
+        var projects = new Mock<IProjectRepository>(MockBehavior.Strict);
+        var users = new Mock<IUserRepository>(MockBehavior.Strict);
+        var timeProvider = new Mock<TimeProvider>(MockBehavior.Strict);
+        projects.Setup(repository => repository.GetByIdAsync(project.Id, token))
+            .ReturnsAsync(project);
+        users.Setup(repository => repository.GetByIdAsync(newOwnerId, token))
+            .ReturnsAsync((User?)null);
+        var service = new ProjectService(projects.Object, users.Object, timeProvider.Object);
+
+        await Assert.ThrowsAsync<UserNotFoundException>(() => service.UpdateAsync(
+            project.Id, "Changed", null, newOwnerId, token));
+
+        Assert.Equal("Original", project.Name);
+        Assert.Equal("Original description", project.Description);
+        Assert.Equal(originalOwnerId, project.OwnerId);
+        projects.Verify(repository => repository.GetByIdAsync(project.Id, token), Times.Once);
+        users.Verify(repository => repository.GetByIdAsync(newOwnerId, token), Times.Once);
+        projects.VerifyNoOtherCalls();
+        users.VerifyNoOtherCalls();
+        timeProvider.VerifyNoOtherCalls();
+    }
+
     [Fact]
     public async Task GetByOwnerIdAsync_WhenOwnerDoesNotExist_ReturnsNull()
     {
