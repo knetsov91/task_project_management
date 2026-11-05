@@ -25,6 +25,32 @@ public class ProjectsController(ProjectService projectService) : ControllerBase
         }).ToArray());
     }
 
+    [HttpGet("~/api/v1/users/{userId:guid}/projects")]
+    [ProducesResponseType<IReadOnlyList<ProjectResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<ProjectResponse>>> GetByOwnerIdAsync(
+        Guid userId, CancellationToken cancellationToken)
+    {
+        var projects = await projectService.GetByOwnerIdAsync(userId, cancellationToken);
+
+        if (projects is null)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "User not found",
+                detail: $"No user with ID '{userId}' exists.");
+        }
+
+        return Ok(projects.Select(project => new ProjectResponse
+        {
+            Id = project.Id,
+            Name = project.Name,
+            Description = project.Description,
+            OwnerId = project.OwnerId,
+            CreatedAt = project.CreatedAt
+        }).ToArray());
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType<ProjectResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
