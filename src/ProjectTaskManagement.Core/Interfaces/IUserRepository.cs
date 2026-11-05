@@ -12,4 +12,6 @@ public interface IUserRepository
         string normalizedEmail, CancellationToken cancellationToken = default);
 
     Task AddAsync(User user, CancellationToken cancellationToken = default);
+
+    Task UpdateAsync(User user, CancellationToken cancellationToken = default);
 }
