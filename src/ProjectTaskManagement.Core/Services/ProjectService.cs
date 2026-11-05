@@ -18,6 +18,17 @@ public class ProjectService(
         return projects.GetByIdAsync(id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Project>?> GetByOwnerIdAsync(
+        Guid ownerId, CancellationToken cancellationToken = default)
+    {
+        if (await users.GetByIdAsync(ownerId, cancellationToken) is null)
+        {
+            return null;
+        }
+
+        return await projects.GetByOwnerIdAsync(ownerId, cancellationToken);
+    }
+
     public async Task<Project?> CreateAsync(
         string name,
         string? description,
