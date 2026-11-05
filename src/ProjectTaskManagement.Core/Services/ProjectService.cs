@@ -1,4 +1,5 @@
 using ProjectTaskManagement.Core.Entities;
+using ProjectTaskManagement.Core.Exceptions;
 using ProjectTaskManagement.Core.Interfaces;
 
 namespace ProjectTaskManagement.Core.Services;
@@ -27,6 +28,41 @@ public class ProjectService(
         }
 
         return await projects.GetByOwnerIdAsync(ownerId, cancellationToken);
+    }
+
+    public async Task<Project?> UpdateAsync(
+        Guid id,
+        string name,
+        string? description,
+        Guid ownerId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        if (ownerId == Guid.Empty)
+        {
+            throw new ArgumentException("A project owner is required.", nameof(ownerId));
+        }
+
+        var project = await projects.GetByIdAsync(id, cancellationToken);
+
+        if (project is null)
+        {
+            return null;
+        }
+
+        if (await users.GetByIdAsync(ownerId, cancellationToken) is null)
+        {
+            throw new UserNotFoundException(ownerId);
+        }
+
+        project.Name = name.Trim();
+        project.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        project.OwnerId = ownerId;
+
+        await projects.UpdateAsync(project, cancellationToken);
+
+        return project;
     }
 
     public async Task<Project?> CreateAsync(
