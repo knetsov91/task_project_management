@@ -20,6 +20,16 @@ public class ProjectRepository(AppDbContext dbContext) : IProjectRepository
             .SingleOrDefaultAsync(project => project.Id == id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Project>> GetByOwnerIdAsync(
+        Guid ownerId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Projects.AsNoTracking()
+            .Where(project => project.OwnerId == ownerId)
+            .OrderBy(project => project.Name)
+            .ThenBy(project => project.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Project project, CancellationToken cancellationToken = default)
     {
         dbContext.Projects.Add(project);
