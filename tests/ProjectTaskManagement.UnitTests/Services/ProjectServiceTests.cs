@@ -8,6 +8,28 @@ namespace ProjectTaskManagement.UnitTests.Services;
 public class ProjectServiceTests
 {
     [Fact]
+    public async Task GetByOwnerIdAsync_WhenOwnerDoesNotExist_ReturnsNull()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var ownerId = Guid.NewGuid();
+        var projects = new Mock<IProjectRepository>(MockBehavior.Strict);
+        var users = new Mock<IUserRepository>(MockBehavior.Strict);
+        var timeProvider = new Mock<TimeProvider>(MockBehavior.Strict);
+        users.Setup(repository => repository.GetByIdAsync(ownerId, token))
+            .ReturnsAsync((User?)null);
+        var service = new ProjectService(projects.Object, users.Object, timeProvider.Object);
+
+        var result = await service.GetByOwnerIdAsync(ownerId, token);
+
+        Assert.Null(result);
+        users.Verify(repository => repository.GetByIdAsync(ownerId, token), Times.Once);
+        users.VerifyNoOtherCalls();
+        projects.VerifyNoOtherCalls();
+        timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenOwnerExists_CreatesProjectSuccessfully()
     {
         using var cancellation = new CancellationTokenSource();
