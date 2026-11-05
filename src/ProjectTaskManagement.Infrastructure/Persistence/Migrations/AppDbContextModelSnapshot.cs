@@ -21,6 +21,34 @@ namespace ProjectTaskManagement.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("ProjectTaskManagement.Core.Entities.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId")
+                        .HasDatabaseName("IX_Projects_OwnerId");
+
+                    b.ToTable("Projects", (string)null);
+                });
+
             modelBuilder.Entity("ProjectTaskManagement.Core.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -52,6 +80,15 @@ namespace ProjectTaskManagement.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_Users_NormalizedEmail");
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("ProjectTaskManagement.Core.Entities.Project", b =>
+                {
+                    b.HasOne("ProjectTaskManagement.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
