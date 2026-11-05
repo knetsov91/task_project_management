@@ -8,6 +8,47 @@ namespace ProjectTaskManagement.UnitTests.Services;
 public class ProjectServiceTests
 {
     [Fact]
+    public async Task CreateAsync_WhenOwnerExists_CreatesProjectSuccessfully()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var ownerId = Guid.NewGuid();
+        var now = new DateTimeOffset(2026, 11, 5, 12, 0, 0, TimeSpan.Zero);
+        var owner = new User
+        {
+            Id = ownerId,
+            Name = "Alice",
+            Email = "alice@example.com",
+            NormalizedEmail = "ALICE@EXAMPLE.COM"
+        };
+        var projects = new Mock<IProjectRepository>(MockBehavior.Strict);
+        var users = new Mock<IUserRepository>(MockBehavior.Strict);
+        var timeProvider = new Mock<TimeProvider>(MockBehavior.Strict);
+        users.Setup(repository => repository.GetByIdAsync(ownerId, token)).ReturnsAsync(owner);
+        projects.Setup(repository => repository.AddAsync(It.IsAny<Project>(), token))
+            .Returns(Task.CompletedTask);
+        timeProvider.Setup(provider => provider.GetUtcNow()).Returns(now);
+        var service = new ProjectService(projects.Object, users.Object, timeProvider.Object);
+
+        var project = await service.CreateAsync(
+            " Portfolio API ", " Project management API ", ownerId, token);
+
+        Assert.NotNull(project);
+        Assert.NotEqual(Guid.Empty, project.Id);
+        Assert.Equal("Portfolio API", project.Name);
+        Assert.Equal("Project management API", project.Description);
+        Assert.Equal(ownerId, project.OwnerId);
+        Assert.Equal(now, project.CreatedAt);
+        Assert.Equal(TimeSpan.Zero, project.CreatedAt.Offset);
+        users.Verify(repository => repository.GetByIdAsync(ownerId, token), Times.Once);
+        projects.Verify(repository => repository.AddAsync(project, token), Times.Once);
+        timeProvider.Verify(provider => provider.GetUtcNow(), Times.Once);
+        users.VerifyNoOtherCalls();
+        projects.VerifyNoOtherCalls();
+        timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenOwnerDoesNotExist_DoesNotCreateProject()
     {
         using var cancellation = new CancellationTokenSource();
