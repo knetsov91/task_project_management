@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ProjectTaskManagement.Api/ProjectTaskManagement.Api.csproj" />
+    <Project Path="src/ProjectTaskManagement.Core/ProjectTaskManagement.Core.csproj" />
+    <Project Path="src/ProjectTaskManagement.Infrastructure/ProjectTaskManagement.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ProjectTaskManagement.IntegrationTests/ProjectTaskManagement.IntegrationTests.csproj" />
+    <Project Path="tests/ProjectTaskManagement.UnitTests/ProjectTaskManagement.UnitTests.csproj" />
+  </Folder>
+</Solution>
