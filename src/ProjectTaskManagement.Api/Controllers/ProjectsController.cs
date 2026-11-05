@@ -8,6 +8,23 @@ namespace ProjectTaskManagement.Api.Controllers;
 [Route("api/v1/projects")]
 public class ProjectsController(ProjectService projectService) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType<IReadOnlyList<ProjectResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ProjectResponse>>> GetAllAsync(
+        CancellationToken cancellationToken)
+    {
+        var projects = await projectService.GetAllAsync(cancellationToken);
+
+        return Ok(projects.Select(project => new ProjectResponse
+        {
+            Id = project.Id,
+            Name = project.Name,
+            Description = project.Description,
+            OwnerId = project.OwnerId,
+            CreatedAt = project.CreatedAt
+        }).ToArray());
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType<ProjectResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
