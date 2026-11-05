@@ -48,4 +48,23 @@ public class UserRepository(AppDbContext dbContext) : IUserRepository
             throw new DuplicateEmailException();
         }
     }
+
+    public async Task UpdateAsync(User user, CancellationToken cancellationToken = default)
+    {
+        dbContext.Users.Update(user);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is SqlException sqlException
+            && sqlException.Errors.Cast<SqlError>().Any(error =>
+                error.Number is 2601 or 2627
+                && error.Message.Contains(
+                    UserConfiguration.NormalizedEmailIndexName, StringComparison.Ordinal)))
+        {
+            throw new DuplicateEmailException();
+        }
+    }
 }
