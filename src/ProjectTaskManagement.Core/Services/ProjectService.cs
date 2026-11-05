@@ -8,6 +8,11 @@ public class ProjectService(
     IUserRepository users,
     TimeProvider timeProvider)
 {
+    public Task<Project?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return projects.GetByIdAsync(id, cancellationToken);
+    }
+
     public async Task<Project?> CreateAsync(
         string name,
         string? description,
