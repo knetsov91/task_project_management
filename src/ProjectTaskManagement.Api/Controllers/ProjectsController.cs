@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using ProjectTaskManagement.Api.DTOs.Projects;
+using ProjectTaskManagement.Core.Exceptions;
 using ProjectTaskManagement.Core.Services;
 
 namespace ProjectTaskManagement.Api.Controllers;
@@ -75,6 +76,44 @@ public class ProjectsController(ProjectService projectService) : ControllerBase
             OwnerId = project.OwnerId,
             CreatedAt = project.CreatedAt
         });
+    }
+
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType<ProjectResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProjectResponse>> UpdateAsync(
+        Guid id, UpdateProjectRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var project = await projectService.UpdateAsync(
+                id, request.Name, request.Description, request.OwnerId, cancellationToken);
+
+            if (project is null)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Project not found",
+                    detail: $"No project with ID '{id}' exists.");
+            }
+
+            return Ok(new ProjectResponse
+            {
+                Id = project.Id,
+                Name = project.Name,
+                Description = project.Description,
+                OwnerId = project.OwnerId,
+                CreatedAt = project.CreatedAt
+            });
+        }
+        catch (UserNotFoundException exception)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Project owner not found",
+                detail: exception.Message);
+        }
     }
 
     [HttpPost]
