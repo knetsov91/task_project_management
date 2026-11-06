@@ -11,6 +11,38 @@ public class TaskService(
     IUserRepository users,
     TimeProvider timeProvider)
 {
+    public async Task<TaskItem?> ChangeStatusAsync(
+        Guid id, TaskItemStatus status, CancellationToken cancellationToken = default)
+    {
+        if (!Enum.IsDefined(status))
+        {
+            throw new ArgumentOutOfRangeException(nameof(status), "Task status is invalid.");
+        }
+
+        var task = await tasks.GetByIdAsync(id, cancellationToken);
+
+        if (task is null)
+        {
+            return null;
+        }
+
+        var allowed = (task.Status, status) is
+            (TaskItemStatus.Todo, TaskItemStatus.InProgress) or
+            (TaskItemStatus.InProgress, TaskItemStatus.Todo) or
+            (TaskItemStatus.InProgress, TaskItemStatus.Completed) or
+            (TaskItemStatus.Completed, TaskItemStatus.InProgress);
+
+        if (!allowed)
+        {
+            throw new InvalidTaskStatusTransitionException(task.Status, status);
+        }
+
+        task.Status = status;
+        await tasks.UpdateAsync(task, cancellationToken);
+
+        return task;
+    }
+
     public async Task<TaskItem?> CreateAsync(
         Guid projectId,
         string title,
