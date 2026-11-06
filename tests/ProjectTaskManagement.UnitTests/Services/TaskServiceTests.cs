@@ -14,6 +14,22 @@ public class TaskServiceTests
     private readonly Mock<IUserRepository> _users = new(MockBehavior.Strict);
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(99)]
+    public async Task ChangeStatusAsync_WhenStatusIsUndefined_RejectsBeforeDatabaseAccess(int status)
+    {
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => service.ChangeStatusAsync(Guid.NewGuid(), (TaskItemStatus)status));
+
+        _tasks.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
     [Fact]
     public async Task ChangeStatusAsync_WhenTaskDoesNotExist_DoesNotSaveChanges()
     {
