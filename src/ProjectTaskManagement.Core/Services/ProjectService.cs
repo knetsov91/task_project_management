@@ -19,6 +19,11 @@ public class ProjectService(
         return projects.GetByIdAsync(id, cancellationToken);
     }
 
+    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return projects.DeleteAsync(id, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Project>?> GetByOwnerIdAsync(
         Guid ownerId, CancellationToken cancellationToken = default)
     {
