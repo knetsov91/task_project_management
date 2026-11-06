@@ -13,6 +13,27 @@ public class TaskServiceTests
     private readonly Mock<IUserRepository> _users = new(MockBehavior.Strict);
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
+    [Fact]
+    public async Task CreateAsync_WhenProjectDoesNotExist_DoesNotCreateTask()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var projectId = Guid.NewGuid();
+        _projects.Setup(repository => repository.GetByIdAsync(projectId, token))
+            .ReturnsAsync((Project?)null);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = await service.CreateAsync(
+            projectId, "Implement API", null, TaskPriority.Medium, null, Guid.NewGuid(), token);
+
+        Assert.Null(result);
+        _projects.Verify(repository => repository.GetByIdAsync(projectId, token), Times.Once);
+        _projects.VerifyNoOtherCalls();
+        _tasks.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
