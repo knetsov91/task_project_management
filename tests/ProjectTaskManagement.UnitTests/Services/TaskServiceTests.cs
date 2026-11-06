@@ -14,6 +14,39 @@ public class TaskServiceTests
     private readonly Mock<IUserRepository> _users = new(MockBehavior.Strict);
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
+    [Theory]
+    [InlineData(TaskItemStatus.Todo, TaskItemStatus.InProgress)]
+    [InlineData(TaskItemStatus.InProgress, TaskItemStatus.Todo)]
+    [InlineData(TaskItemStatus.InProgress, TaskItemStatus.Completed)]
+    [InlineData(TaskItemStatus.Completed, TaskItemStatus.InProgress)]
+    public async Task ChangeStatusAsync_WhenTransitionIsAllowed_UpdatesTaskStatus(
+        TaskItemStatus currentStatus, TaskItemStatus nextStatus)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var task = new TaskItem
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),
+            Title = "Implement API",
+            Status = currentStatus
+        };
+        _tasks.Setup(repository => repository.GetByIdAsync(task.Id, token)).ReturnsAsync(task);
+        _tasks.Setup(repository => repository.UpdateAsync(task, token)).Returns(Task.CompletedTask);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = await service.ChangeStatusAsync(task.Id, nextStatus, token);
+
+        Assert.Same(task, result);
+        Assert.Equal(nextStatus, task.Status);
+        _tasks.Verify(repository => repository.GetByIdAsync(task.Id, token), Times.Once);
+        _tasks.Verify(repository => repository.UpdateAsync(task, token), Times.Once);
+        _tasks.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
     [Fact]
     public async Task CreateAsync_WhenAssigneeDoesNotExist_DoesNotCreateTask()
     {
