@@ -14,6 +14,25 @@ public class TaskServiceTests
     private readonly Mock<IUserRepository> _users = new(MockBehavior.Strict);
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
+    [Fact]
+    public async Task ChangeStatusAsync_WhenTaskDoesNotExist_DoesNotSaveChanges()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var taskId = Guid.NewGuid();
+        _tasks.Setup(repository => repository.GetByIdAsync(taskId, token)).ReturnsAsync((TaskItem?)null);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = await service.ChangeStatusAsync(taskId, TaskItemStatus.InProgress, token);
+
+        Assert.Null(result);
+        _tasks.Verify(repository => repository.GetByIdAsync(taskId, token), Times.Once);
+        _tasks.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
     [Theory]
     [InlineData(TaskItemStatus.Todo, TaskItemStatus.Completed)]
     [InlineData(TaskItemStatus.Completed, TaskItemStatus.Todo)]
