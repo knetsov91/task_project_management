@@ -78,6 +78,22 @@ public class ProjectsController(ProjectService projectService) : ControllerBase
         });
     }
 
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (!await projectService.DeleteAsync(id, cancellationToken))
+        {
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Project not found",
+                detail: $"No project with ID '{id}' exists.");
+        }
+
+        return NoContent();
+    }
+
     [HttpPut("{id:guid}")]
     [ProducesResponseType<ProjectResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
