@@ -41,4 +41,13 @@ public class ProjectRepository(AppDbContext dbContext) : IProjectRepository
         dbContext.Projects.Update(project);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var deletedCount = await dbContext.Projects
+            .Where(project => project.Id == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return deletedCount > 0;
+    }
 }
