@@ -15,6 +15,25 @@ public class TaskServiceTests
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
     [Fact]
+    public async Task ChangeAssigneeAsync_WhenTaskDoesNotExist_DoesNotSaveChanges()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var taskId = Guid.NewGuid();
+        _tasks.Setup(repository => repository.GetByIdAsync(taskId, token)).ReturnsAsync((TaskItem?)null);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = await service.ChangeAssigneeAsync(taskId, Guid.NewGuid(), token);
+
+        Assert.Null(result);
+        _tasks.Verify(repository => repository.GetByIdAsync(taskId, token), Times.Once);
+        _tasks.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task ChangeAssigneeAsync_WhenUserDoesNotExist_PreservesCurrentAssignment()
     {
         using var cancellation = new CancellationTokenSource();
