@@ -1,0 +1,53 @@
+using Microsoft.EntityFrameworkCore;
+using ProjectTaskManagement.Core.Entities;
+using ProjectTaskManagement.Core.Interfaces;
+
+namespace ProjectTaskManagement.Infrastructure.Persistence.Repositories;
+
+public class ProjectRepository(AppDbContext dbContext) : IProjectRepository
+{
+    public async Task<IReadOnlyList<Project>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Projects.AsNoTracking()
+            .OrderBy(project => project.Name)
+            .ThenBy(project => project.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<Project?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Projects.AsNoTracking()
+            .SingleOrDefaultAsync(project => project.Id == id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Project>> GetByOwnerIdAsync(
+        Guid ownerId, CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Projects.AsNoTracking()
+            .Where(project => project.OwnerId == ownerId)
+            .OrderBy(project => project.Name)
+            .ThenBy(project => project.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddAsync(Project project, CancellationToken cancellationToken = default)
+    {
+        dbContext.Projects.Add(project);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(Project project, CancellationToken cancellationToken = default)
+    {
+        dbContext.Projects.Update(project);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var deletedCount = await dbContext.Projects
+            .Where(project => project.Id == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return deletedCount > 0;
+    }
+}
