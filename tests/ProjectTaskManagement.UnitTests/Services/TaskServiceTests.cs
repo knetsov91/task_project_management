@@ -14,6 +14,105 @@ public class TaskServiceTests
     private readonly Mock<IUserRepository> _users = new(MockBehavior.Strict);
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
+    [Fact]
+    public async Task ChangeAssigneeAsync_WhenTaskDoesNotExist_DoesNotSaveChanges()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var taskId = Guid.NewGuid();
+        _tasks.Setup(repository => repository.GetByIdAsync(taskId, token)).ReturnsAsync((TaskItem?)null);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = await service.ChangeAssigneeAsync(taskId, Guid.NewGuid(), token);
+
+        Assert.Null(result);
+        _tasks.Verify(repository => repository.GetByIdAsync(taskId, token), Times.Once);
+        _tasks.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ChangeAssigneeAsync_WhenUserDoesNotExist_PreservesCurrentAssignment()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var originalAssigneeId = Guid.NewGuid();
+        var requestedAssigneeId = Guid.NewGuid();
+        var task = new TaskItem
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),
+            Title = "Implement API",
+            AssignedToId = originalAssigneeId
+        };
+        _tasks.Setup(repository => repository.GetByIdAsync(task.Id, token)).ReturnsAsync(task);
+        _users.Setup(repository => repository.GetByIdAsync(requestedAssigneeId, token))
+            .ReturnsAsync((User?)null);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        await Assert.ThrowsAsync<UserNotFoundException>(
+            () => service.ChangeAssigneeAsync(task.Id, requestedAssigneeId, token));
+
+        Assert.Equal(originalAssigneeId, task.AssignedToId);
+        _tasks.Verify(repository => repository.GetByIdAsync(task.Id, token), Times.Once);
+        _users.Verify(repository => repository.GetByIdAsync(requestedAssigneeId, token), Times.Once);
+        _tasks.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChangeAssigneeAsync_WithValidAssignee_UpdatesAssignment(bool assignUser)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var task = new TaskItem
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),
+            Title = "Implement API",
+            AssignedToId = Guid.NewGuid()
+        };
+        Guid? assigneeId = assignUser ? Guid.NewGuid() : null;
+        _tasks.Setup(repository => repository.GetByIdAsync(task.Id, token)).ReturnsAsync(task);
+        _tasks.Setup(repository => repository.UpdateAsync(task, token)).Returns(Task.CompletedTask);
+
+        if (assigneeId is Guid userId)
+        {
+            _users.Setup(repository => repository.GetByIdAsync(userId, token)).ReturnsAsync(new User
+            {
+                Id = userId,
+                Name = "Alice",
+                Email = "alice@example.com",
+                NormalizedEmail = "ALICE@EXAMPLE.COM"
+            });
+        }
+
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = await service.ChangeAssigneeAsync(task.Id, assigneeId, token);
+
+        Assert.Same(task, result);
+        Assert.Equal(assigneeId, task.AssignedToId);
+        _tasks.Verify(repository => repository.GetByIdAsync(task.Id, token), Times.Once);
+        _tasks.Verify(repository => repository.UpdateAsync(task, token), Times.Once);
+
+        if (assigneeId is Guid expectedUserId)
+        {
+            _users.Verify(repository => repository.GetByIdAsync(expectedUserId, token), Times.Once);
+        }
+
+        _tasks.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
     [Theory]
     [InlineData(-1)]
     [InlineData(99)]

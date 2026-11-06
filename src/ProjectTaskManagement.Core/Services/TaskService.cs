@@ -11,6 +11,33 @@ public class TaskService(
     IUserRepository users,
     TimeProvider timeProvider)
 {
+    public async Task<TaskItem?> ChangeAssigneeAsync(
+        Guid id, Guid? assignedToId, CancellationToken cancellationToken = default)
+    {
+        if (assignedToId == Guid.Empty)
+        {
+            throw new ArgumentException("An assignee ID cannot be empty.", nameof(assignedToId));
+        }
+
+        var task = await tasks.GetByIdAsync(id, cancellationToken);
+
+        if (task is null)
+        {
+            return null;
+        }
+
+        if (assignedToId is Guid assigneeId
+            && await users.GetByIdAsync(assigneeId, cancellationToken) is null)
+        {
+            throw new UserNotFoundException(assigneeId);
+        }
+
+        task.AssignedToId = assignedToId;
+        await tasks.UpdateAsync(task, cancellationToken);
+
+        return task;
+    }
+
     public async Task<TaskItem?> ChangeStatusAsync(
         Guid id, TaskItemStatus status, CancellationToken cancellationToken = default)
     {
