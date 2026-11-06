@@ -1,6 +1,7 @@
 using Moq;
 using ProjectTaskManagement.Core.Entities;
 using ProjectTaskManagement.Core.Enums;
+using ProjectTaskManagement.Core.Exceptions;
 using ProjectTaskManagement.Core.Interfaces;
 using ProjectTaskManagement.Core.Services;
 
@@ -12,6 +13,34 @@ public class TaskServiceTests
     private readonly Mock<IProjectRepository> _projects = new(MockBehavior.Strict);
     private readonly Mock<IUserRepository> _users = new(MockBehavior.Strict);
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
+
+    [Fact]
+    public async Task CreateAsync_WhenAssigneeDoesNotExist_DoesNotCreateTask()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "Portfolio API",
+            OwnerId = Guid.NewGuid()
+        };
+        var assigneeId = Guid.NewGuid();
+        _projects.Setup(repository => repository.GetByIdAsync(project.Id, token)).ReturnsAsync(project);
+        _users.Setup(repository => repository.GetByIdAsync(assigneeId, token))
+            .ReturnsAsync((User?)null);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        await Assert.ThrowsAsync<UserNotFoundException>(() => service.CreateAsync(
+            project.Id, "Implement API", null, TaskPriority.Medium, null, assigneeId, token));
+
+        _projects.Verify(repository => repository.GetByIdAsync(project.Id, token), Times.Once);
+        _users.Verify(repository => repository.GetByIdAsync(assigneeId, token), Times.Once);
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _tasks.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
 
     [Fact]
     public async Task CreateAsync_WhenProjectDoesNotExist_DoesNotCreateTask()
