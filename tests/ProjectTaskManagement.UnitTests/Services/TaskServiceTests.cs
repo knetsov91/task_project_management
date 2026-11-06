@@ -15,6 +15,38 @@ public class TaskServiceTests
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
     [Theory]
+    [InlineData(TaskItemStatus.Todo, TaskItemStatus.Completed)]
+    [InlineData(TaskItemStatus.Completed, TaskItemStatus.Todo)]
+    [InlineData(TaskItemStatus.Todo, TaskItemStatus.Todo)]
+    [InlineData(TaskItemStatus.InProgress, TaskItemStatus.InProgress)]
+    [InlineData(TaskItemStatus.Completed, TaskItemStatus.Completed)]
+    public async Task ChangeStatusAsync_WhenTransitionIsInvalid_DoesNotUpdateTask(
+        TaskItemStatus currentStatus, TaskItemStatus nextStatus)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var task = new TaskItem
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),
+            Title = "Implement API",
+            Status = currentStatus
+        };
+        _tasks.Setup(repository => repository.GetByIdAsync(task.Id, token)).ReturnsAsync(task);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        await Assert.ThrowsAsync<InvalidTaskStatusTransitionException>(
+            () => service.ChangeStatusAsync(task.Id, nextStatus, token));
+
+        Assert.Equal(currentStatus, task.Status);
+        _tasks.Verify(repository => repository.GetByIdAsync(task.Id, token), Times.Once);
+        _tasks.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Theory]
     [InlineData(TaskItemStatus.Todo, TaskItemStatus.InProgress)]
     [InlineData(TaskItemStatus.InProgress, TaskItemStatus.Todo)]
     [InlineData(TaskItemStatus.InProgress, TaskItemStatus.Completed)]
