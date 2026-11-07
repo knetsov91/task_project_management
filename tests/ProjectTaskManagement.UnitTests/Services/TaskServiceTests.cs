@@ -14,6 +14,30 @@ public class TaskServiceTests
     private readonly Mock<IUserRepository> _users = new(MockBehavior.Strict);
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetByIdAsync_ReturnsTaskOrNullFromRepository(bool taskExists)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var taskId = Guid.NewGuid();
+        var expected = taskExists
+            ? new TaskItem { Id = taskId, ProjectId = Guid.NewGuid(), Title = "Implement API" }
+            : null;
+        _tasks.Setup(repository => repository.GetByIdAsync(taskId, token)).ReturnsAsync(expected);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = await service.GetByIdAsync(taskId, token);
+
+        Assert.Same(expected, result);
+        _tasks.Verify(repository => repository.GetByIdAsync(taskId, token), Times.Once);
+        _tasks.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
     [Fact]
     public async Task ChangeAssigneeAsync_WhenTaskDoesNotExist_DoesNotSaveChanges()
     {
