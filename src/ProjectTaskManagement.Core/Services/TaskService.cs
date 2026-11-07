@@ -16,6 +16,28 @@ public class TaskService(
         return tasks.GetByIdAsync(id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<TaskItem>?> GetByProjectIdAsync(
+        Guid projectId, CancellationToken cancellationToken = default)
+    {
+        if (await projects.GetByIdAsync(projectId, cancellationToken) is null)
+        {
+            return null;
+        }
+
+        return await tasks.GetByProjectIdAsync(projectId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TaskItem>?> GetByAssigneeIdAsync(
+        Guid assigneeId, CancellationToken cancellationToken = default)
+    {
+        if (await users.GetByIdAsync(assigneeId, cancellationToken) is null)
+        {
+            return null;
+        }
+
+        return await tasks.GetByAssigneeIdAsync(assigneeId, cancellationToken);
+    }
+
     public async Task<TaskItem?> ChangeAssigneeAsync(
         Guid id, Guid? assignedToId, CancellationToken cancellationToken = default)
     {
