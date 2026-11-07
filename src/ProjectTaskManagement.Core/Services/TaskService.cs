@@ -80,18 +80,66 @@ public class TaskService(
             return null;
         }
 
-        var allowed = (task.Status, status) is
-            (TaskItemStatus.Todo, TaskItemStatus.InProgress) or
-            (TaskItemStatus.InProgress, TaskItemStatus.Todo) or
-            (TaskItemStatus.InProgress, TaskItemStatus.Completed) or
-            (TaskItemStatus.Completed, TaskItemStatus.InProgress);
-
-        if (!allowed)
-        {
-            throw new InvalidTaskStatusTransitionException(task.Status, status);
-        }
+        ValidateStatusTransition(task.Status, status);
 
         task.Status = status;
+        await tasks.UpdateAsync(task, cancellationToken);
+
+        return task;
+    }
+
+    public async Task<TaskItem?> UpdateAsync(
+        Guid id,
+        string title,
+        string? description,
+        TaskItemStatus status,
+        TaskPriority priority,
+        DateTimeOffset? dueDate,
+        Guid? assignedToId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+
+        if (!Enum.IsDefined(status))
+        {
+            throw new ArgumentOutOfRangeException(nameof(status), "Task status is invalid.");
+        }
+
+        if (!Enum.IsDefined(priority))
+        {
+            throw new ArgumentOutOfRangeException(nameof(priority), "Task priority is invalid.");
+        }
+
+        if (assignedToId == Guid.Empty)
+        {
+            throw new ArgumentException("An assignee ID cannot be empty.", nameof(assignedToId));
+        }
+
+        var task = await tasks.GetByIdAsync(id, cancellationToken);
+
+        if (task is null)
+        {
+            return null;
+        }
+
+        if (task.Status != status)
+        {
+            ValidateStatusTransition(task.Status, status);
+        }
+
+        if (assignedToId is Guid assigneeId
+            && await users.GetByIdAsync(assigneeId, cancellationToken) is null)
+        {
+            throw new UserNotFoundException(assigneeId);
+        }
+
+        task.Title = title.Trim();
+        task.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        task.Status = status;
+        task.Priority = priority;
+        task.DueDate = dueDate?.ToUniversalTime();
+        task.AssignedToId = assignedToId;
+
         await tasks.UpdateAsync(task, cancellationToken);
 
         return task;
@@ -150,5 +198,19 @@ public class TaskService(
         await tasks.AddAsync(task, cancellationToken);
 
         return task;
+    }
+
+    private static void ValidateStatusTransition(TaskItemStatus currentStatus, TaskItemStatus nextStatus)
+    {
+        var allowed = (currentStatus, nextStatus) is
+            (TaskItemStatus.Todo, TaskItemStatus.InProgress) or
+            (TaskItemStatus.InProgress, TaskItemStatus.Todo) or
+            (TaskItemStatus.InProgress, TaskItemStatus.Completed) or
+            (TaskItemStatus.Completed, TaskItemStatus.InProgress);
+
+        if (!allowed)
+        {
+            throw new InvalidTaskStatusTransitionException(currentStatus, nextStatus);
+        }
     }
 }
