@@ -17,6 +17,49 @@ public class TaskServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task TaskListing_WhenProjectOrAssigneeDoesNotExist_DoesNotQueryTasks(bool byProject)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var parentId = Guid.NewGuid();
+
+        if (byProject)
+        {
+            _projects.Setup(repository => repository.GetByIdAsync(parentId, token))
+                .ReturnsAsync((Project?)null);
+        }
+        else
+        {
+            _users.Setup(repository => repository.GetByIdAsync(parentId, token))
+                .ReturnsAsync((User?)null);
+        }
+
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = byProject
+            ? await service.GetByProjectIdAsync(parentId, token)
+            : await service.GetByAssigneeIdAsync(parentId, token);
+
+        Assert.Null(result);
+
+        if (byProject)
+        {
+            _projects.Verify(repository => repository.GetByIdAsync(parentId, token), Times.Once);
+        }
+        else
+        {
+            _users.Verify(repository => repository.GetByIdAsync(parentId, token), Times.Once);
+        }
+
+        _tasks.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task GetByIdAsync_ReturnsTaskOrNullFromRepository(bool taskExists)
     {
         using var cancellation = new CancellationTokenSource();
