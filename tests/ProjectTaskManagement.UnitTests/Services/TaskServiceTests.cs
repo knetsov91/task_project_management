@@ -17,6 +17,60 @@ public class TaskServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task TaskListing_WhenExistingProjectOrUserHasNoTasks_ReturnsEmptyList(bool byProject)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var parentId = Guid.NewGuid();
+        IReadOnlyList<TaskItem> expected = [];
+
+        if (byProject)
+        {
+            _projects.Setup(repository => repository.GetByIdAsync(parentId, token)).ReturnsAsync(
+                new Project { Id = parentId, Name = "Portfolio API", OwnerId = Guid.NewGuid() });
+            _tasks.Setup(repository => repository.GetByProjectIdAsync(parentId, token)).ReturnsAsync(expected);
+        }
+        else
+        {
+            _users.Setup(repository => repository.GetByIdAsync(parentId, token)).ReturnsAsync(new User
+            {
+                Id = parentId,
+                Name = "Alice",
+                Email = "alice@example.com",
+                NormalizedEmail = "ALICE@EXAMPLE.COM"
+            });
+            _tasks.Setup(repository => repository.GetByAssigneeIdAsync(parentId, token)).ReturnsAsync(expected);
+        }
+
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = byProject
+            ? await service.GetByProjectIdAsync(parentId, token)
+            : await service.GetByAssigneeIdAsync(parentId, token);
+
+        Assert.NotNull(result);
+        Assert.Empty(result);
+
+        if (byProject)
+        {
+            _projects.Verify(repository => repository.GetByIdAsync(parentId, token), Times.Once);
+            _tasks.Verify(repository => repository.GetByProjectIdAsync(parentId, token), Times.Once);
+        }
+        else
+        {
+            _users.Verify(repository => repository.GetByIdAsync(parentId, token), Times.Once);
+            _tasks.Verify(repository => repository.GetByAssigneeIdAsync(parentId, token), Times.Once);
+        }
+
+        _tasks.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task TaskListing_WhenProjectOrAssigneeDoesNotExist_DoesNotQueryTasks(bool byProject)
     {
         using var cancellation = new CancellationTokenSource();
