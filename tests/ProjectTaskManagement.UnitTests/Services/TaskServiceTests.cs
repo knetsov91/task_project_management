@@ -15,6 +15,46 @@ public class TaskServiceTests
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
     [Theory]
+    [InlineData(TaskItemStatus.Todo, TaskItemStatus.Completed)]
+    [InlineData(TaskItemStatus.Completed, TaskItemStatus.Todo)]
+    public async Task UpdateAsync_WhenStatusTransitionIsInvalid_PreservesTaskFields(
+        TaskItemStatus currentStatus, TaskItemStatus nextStatus)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var originalAssigneeId = Guid.NewGuid();
+        var originalDueDate = DateTimeOffset.UtcNow.AddDays(1);
+        var task = new TaskItem
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),
+            Title = "Original",
+            Description = "Original description",
+            Status = currentStatus,
+            Priority = TaskPriority.Low,
+            DueDate = originalDueDate,
+            AssignedToId = originalAssigneeId
+        };
+        _tasks.Setup(repository => repository.GetByIdAsync(task.Id, token)).ReturnsAsync(task);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        await Assert.ThrowsAsync<InvalidTaskStatusTransitionException>(() => service.UpdateAsync(
+            task.Id, "Changed", null, nextStatus, TaskPriority.High, null, Guid.NewGuid(), token));
+
+        Assert.Equal("Original", task.Title);
+        Assert.Equal("Original description", task.Description);
+        Assert.Equal(currentStatus, task.Status);
+        Assert.Equal(TaskPriority.Low, task.Priority);
+        Assert.Equal(originalDueDate, task.DueDate);
+        Assert.Equal(originalAssigneeId, task.AssignedToId);
+        _tasks.Verify(repository => repository.GetByIdAsync(task.Id, token), Times.Once);
+        _tasks.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Theory]
     [InlineData(TaskItemStatus.Todo, TaskItemStatus.InProgress)]
     [InlineData(TaskItemStatus.InProgress, TaskItemStatus.Todo)]
     [InlineData(TaskItemStatus.InProgress, TaskItemStatus.Completed)]
