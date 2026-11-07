@@ -11,6 +11,11 @@ public class TaskService(
     IUserRepository users,
     TimeProvider timeProvider)
 {
+    public Task<TaskItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return tasks.GetByIdAsync(id, cancellationToken);
+    }
+
     public async Task<TaskItem?> ChangeAssigneeAsync(
         Guid id, Guid? assignedToId, CancellationToken cancellationToken = default)
     {
