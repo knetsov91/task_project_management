@@ -15,6 +15,60 @@ public class TaskServiceTests
     private readonly Mock<TimeProvider> _timeProvider = new(MockBehavior.Strict);
 
     [Theory]
+    [InlineData(TaskItemStatus.Todo, TaskItemStatus.InProgress)]
+    [InlineData(TaskItemStatus.InProgress, TaskItemStatus.Todo)]
+    [InlineData(TaskItemStatus.InProgress, TaskItemStatus.Completed)]
+    [InlineData(TaskItemStatus.Completed, TaskItemStatus.InProgress)]
+    [InlineData(TaskItemStatus.Todo, TaskItemStatus.Todo)]
+    [InlineData(TaskItemStatus.InProgress, TaskItemStatus.InProgress)]
+    [InlineData(TaskItemStatus.Completed, TaskItemStatus.Completed)]
+    public async Task UpdateAsync_WithValidChanges_UpdatesTaskAndPreservesServerFields(
+        TaskItemStatus currentStatus, TaskItemStatus nextStatus)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var taskId = Guid.NewGuid();
+        var projectId = Guid.NewGuid();
+        var createdAt = new DateTimeOffset(2026, 11, 6, 10, 0, 0, TimeSpan.Zero);
+        var dueDate = new DateTimeOffset(2026, 11, 10, 12, 0, 0, TimeSpan.FromHours(2));
+        var task = new TaskItem
+        {
+            Id = taskId,
+            ProjectId = projectId,
+            Title = "Original",
+            Description = "Original description",
+            AssignedToId = Guid.NewGuid(),
+            Status = currentStatus,
+            Priority = TaskPriority.Low,
+            CreatedAt = createdAt
+        };
+        _tasks.Setup(repository => repository.GetByIdAsync(taskId, token)).ReturnsAsync(task);
+        _tasks.Setup(repository => repository.UpdateAsync(task, token)).Returns(Task.CompletedTask);
+        var service = new TaskService(_tasks.Object, _projects.Object, _users.Object, _timeProvider.Object);
+
+        var result = await service.UpdateAsync(
+            taskId, " Updated task ", null, nextStatus, TaskPriority.High, dueDate, null, token);
+
+        Assert.Same(task, result);
+        Assert.Equal(taskId, task.Id);
+        Assert.Equal(projectId, task.ProjectId);
+        Assert.Equal(createdAt, task.CreatedAt);
+        Assert.Equal("Updated task", task.Title);
+        Assert.Null(task.Description);
+        Assert.Null(task.AssignedToId);
+        Assert.Equal(nextStatus, task.Status);
+        Assert.Equal(TaskPriority.High, task.Priority);
+        Assert.Equal(dueDate.ToUniversalTime(), task.DueDate);
+        Assert.Equal(TimeSpan.Zero, task.DueDate!.Value.Offset);
+        _tasks.Verify(repository => repository.GetByIdAsync(taskId, token), Times.Once);
+        _tasks.Verify(repository => repository.UpdateAsync(task, token), Times.Once);
+        _tasks.VerifyNoOtherCalls();
+        _projects.VerifyNoOtherCalls();
+        _users.VerifyNoOtherCalls();
+        _timeProvider.VerifyNoOtherCalls();
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task TaskListing_WhenExistingProjectOrUserHasNoTasks_ReturnsEmptyList(bool byProject)
