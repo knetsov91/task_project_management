@@ -77,6 +77,29 @@ public class TasksApiTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"title\":null}")]
+    [InlineData("{\"title\":\"   \"}")]
+    [InlineData("{\"title\":\"Task\",\"priority\":99}")]
+    [InlineData("{\"title\":\"Task\",\"priority\":null}")]
+    [InlineData("{\"title\":\"Task\",\"assignedToId\":\"00000000-0000-0000-0000-000000000000\"}")]
+    [InlineData("{\"title\":\"Task\",\"dueDate\":\"invalid\"}")]
+    public async Task CreateTask_WithInvalidInput_ReturnsValidationProblemBeforePersistence(string json)
+    {
+        using var factory = new TaskApiFactory();
+        using var client = factory.CreateClient();
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        using var response = await client.PostAsync($"/api/v1/projects/{Guid.NewGuid()}/tasks", content);
+
+        var problem = await AssertProblemAsync(response, HttpStatusCode.BadRequest);
+        Assert.NotEmpty(problem.Errors);
+        factory.Projects.VerifyNoOtherCalls();
+        factory.Users.VerifyNoOtherCalls();
+        factory.Tasks.VerifyNoOtherCalls();
+    }
+
     private static async Task<ValidationProblemDetails> AssertProblemAsync(
         HttpResponseMessage response, HttpStatusCode status)
     {
