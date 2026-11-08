@@ -132,6 +132,37 @@ public class TasksApiTests
         factory.Tasks.VerifyNoOtherCalls();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateTask_WithMissingProjectOrAssignee_ReturnsNotFoundWithoutSaving(bool missingAssignee)
+    {
+        using var factory = new TaskApiFactory();
+        using var client = factory.CreateClient();
+        var projectId = Guid.NewGuid();
+        var assigneeId = Guid.NewGuid();
+        factory.Projects.Setup(repository => repository.GetByIdAsync(projectId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(missingAssignee
+                ? new Project { Id = projectId, Name = "Portfolio", OwnerId = Guid.NewGuid() }
+                : null);
+        if (missingAssignee)
+        {
+            factory.Users.Setup(repository => repository.GetByIdAsync(assigneeId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync((User?)null);
+        }
+
+        using var response = await client.PostAsJsonAsync($"/api/v1/projects/{projectId}/tasks",
+            new CreateTaskRequest { Title = "Task", AssignedToId = assigneeId });
+
+        var problem = await AssertProblemAsync(response, HttpStatusCode.NotFound);
+        Assert.Equal(missingAssignee ? "Task assignee not found" : "Project not found", problem?.Title);
+        factory.Tasks.VerifyNoOtherCalls();
+        if (!missingAssignee)
+        {
+            factory.Users.VerifyNoOtherCalls();
+        }
+    }
+
     private static async Task<ValidationProblemDetails> AssertProblemAsync(
         HttpResponseMessage response, HttpStatusCode status)
     {
