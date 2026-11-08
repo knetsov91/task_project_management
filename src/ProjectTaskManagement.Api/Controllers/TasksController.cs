@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ProjectTaskManagement.Api.DTOs.Tasks;
 using ProjectTaskManagement.Core.Entities;
+using ProjectTaskManagement.Core.Exceptions;
 using ProjectTaskManagement.Core.Services;
 
 namespace ProjectTaskManagement.Api.Controllers;
@@ -24,6 +25,39 @@ public class TasksController(TaskService taskService) : ControllerBase
         }
 
         return Ok(ToResponse(task));
+    }
+
+    [HttpPost("~/api/v1/projects/{projectId:guid}/tasks")]
+    [ProducesResponseType<TaskResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TaskResponse>> CreateAsync(
+        Guid projectId, CreateTaskRequest request, CancellationToken cancellationToken)
+    {
+        if (projectId == Guid.Empty)
+        {
+            ModelState.AddModelError(nameof(projectId), "A task project is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        try
+        {
+            var task = await taskService.CreateAsync(projectId, request.Title, request.Description,
+                request.Priority, request.DueDate, request.AssignedToId, cancellationToken);
+
+            if (task is null)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound,
+                    title: "Project not found", detail: $"No project with ID '{projectId}' exists.");
+            }
+
+            return Created($"{Request.PathBase}/api/v1/tasks/{task.Id}", ToResponse(task));
+        }
+        catch (UserNotFoundException exception)
+        {
+            return Problem(statusCode: StatusCodes.Status404NotFound,
+                title: "Task assignee not found", detail: exception.Message);
+        }
     }
 
     private static TaskResponse ToResponse(TaskItem task) => new()
