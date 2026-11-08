@@ -119,6 +119,19 @@ public class TasksApiTests
         factory.Tasks.VerifyNoOtherCalls();
     }
 
+    [Fact]
+    public async Task CreateTask_WithEmptyProjectId_ReturnsBadRequest()
+    {
+        using var factory = new TaskApiFactory();
+        using var client = factory.CreateClient();
+        using var response = await client.PostAsJsonAsync($"/api/v1/projects/{Guid.Empty}/tasks",
+            new CreateTaskRequest { Title = "Task" });
+
+        await AssertProblemAsync(response, HttpStatusCode.BadRequest);
+        factory.Projects.VerifyNoOtherCalls();
+        factory.Tasks.VerifyNoOtherCalls();
+    }
+
     private static async Task<ValidationProblemDetails> AssertProblemAsync(
         HttpResponseMessage response, HttpStatusCode status)
     {
