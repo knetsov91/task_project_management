@@ -163,6 +163,21 @@ public class TasksApiTests
         }
     }
 
+    [Fact]
+    public async Task GetTask_WhenMissing_ReturnsNotFoundProblem()
+    {
+        using var factory = new TaskApiFactory();
+        using var client = factory.CreateClient();
+        var id = Guid.NewGuid();
+        factory.Tasks.Setup(repository => repository.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TaskItem?)null);
+
+        using var response = await client.GetAsync($"/api/v1/tasks/{id}");
+
+        var problem = await AssertProblemAsync(response, HttpStatusCode.NotFound);
+        Assert.Equal("Task not found", problem?.Title);
+    }
+
     private static async Task<ValidationProblemDetails> AssertProblemAsync(
         HttpResponseMessage response, HttpStatusCode status)
     {
