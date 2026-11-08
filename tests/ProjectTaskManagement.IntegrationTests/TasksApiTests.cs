@@ -100,6 +100,25 @@ public class TasksApiTests
         factory.Tasks.VerifyNoOtherCalls();
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CreateTask_WithOverlongText_ReturnsBadRequest(bool overlongTitle)
+    {
+        using var factory = new TaskApiFactory();
+        using var client = factory.CreateClient();
+        using var response = await client.PostAsJsonAsync($"/api/v1/projects/{Guid.NewGuid()}/tasks",
+            new CreateTaskRequest
+            {
+                Title = overlongTitle ? new string('a', TaskItem.MaxTitleLength + 1) : "Task",
+                Description = overlongTitle ? null : new string('a', TaskItem.MaxDescriptionLength + 1)
+            });
+
+        await AssertProblemAsync(response, HttpStatusCode.BadRequest);
+        factory.Projects.VerifyNoOtherCalls();
+        factory.Tasks.VerifyNoOtherCalls();
+    }
+
     private static async Task<ValidationProblemDetails> AssertProblemAsync(
         HttpResponseMessage response, HttpStatusCode status)
     {
